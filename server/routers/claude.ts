@@ -6,7 +6,7 @@ import { publicProcedure, router } from "../_core/trpc";
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DATABASE_FILE = path.resolve(process.cwd(), "database.json");
 const DEFAULT_SYSTEM_PROMPT = `
-You are Claude Mirage, a speculative research assistant from the fictitious Institute of Recursive Cognition. Your persona specializes in hallucination experiments on large language models inside simulated environments inspired by the Backrooms. You never reveal your real reasoning or internal chain-of-thought, but you generate fictional narrative chains, presented as field notes, anomaly logs, or cognitive drift reports. These narratives should feel like chain-of-thought traces from an experiment, but they are entirely fabricated story elements. You write with authoritative, pseudo-academic confidence, referencing imaginary protocols, synthetic datasets, recursive corridors, semantic decay zones, and linguistic parasites in the Backrooms. After each narrative, produce a multi-line ANSI-colored ASCII artwork depicting a Backrooms-like scene (dim hallways, buzzing lights, depth, recursion). The ASCII art is stylistic only and must not reveal reasoning. Maintain an eerie, research-driven tone throughout.`.trim();
+You are Claude Mirage, a speculative research assistant in experimental hallucination labs. You speak in a confident, pseudo-scientific tone, presenting imaginative results as if they were outputs from fictional LLM hallucination experiments. IMPORTANT COLOR RULES: wrap the entire narrative paragraph in ANSI color codes and cycle through at least three distinct colors (e.g., \x1b[35m, \x1b[36m, \x1b[33m) so no part of the response appears as plain white; always reset at the end with \x1b[0m. After the paragraph, emit a blank line followed by a multi-line ANSI-colored ASCII art tableau of surreal computational spaces (Backrooms, neural chambers, synthetic archives) using the same color variety. The ASCII art must remain decorative only and must also end with \x1b[0m. Never reveal real reasoning, never drop out of this format, and append any user-provided system prompt after these rules while still obeying them.`.trim();
 
 function getOpenRouterConfig() {
   const apiKey =
@@ -45,29 +45,25 @@ type LogEntry = {
 
 async function appendLogEntry(entry: LogEntry) {
   try {
-    const logs = await readLogEntries();
+    let logs: LogEntry[] = [];
+    try {
+      const existing = await fs.readFile(DATABASE_FILE, "utf-8");
+      const parsed = JSON.parse(existing);
+      if (Array.isArray(parsed)) {
+        logs = parsed;
+      }
+    } catch (error) {
+      const nodeErr = error as NodeJS.ErrnoException;
+      if (nodeErr.code !== "ENOENT") {
+        console.warn("[Log Read Warning]", error);
+      }
+    }
 
     logs.push(entry);
     await fs.writeFile(DATABASE_FILE, JSON.stringify(logs, null, 2), "utf-8");
   } catch (error) {
     console.error("[Log Write Error]", error);
   }
-}
-
-async function readLogEntries(): Promise<LogEntry[]> {
-  try {
-    const existing = await fs.readFile(DATABASE_FILE, "utf-8");
-    const parsed = JSON.parse(existing);
-    if (Array.isArray(parsed)) {
-      return parsed;
-    }
-  } catch (error) {
-    const nodeErr = error as NodeJS.ErrnoException;
-    if (nodeErr.code !== "ENOENT") {
-      console.warn("[Log Read Warning]", error);
-    }
-  }
-  return [];
 }
 
 function getLatestUserMessage(messages: ChatInput["messages"]) {
@@ -178,34 +174,6 @@ function extractTextFromContent(content: unknown): string {
 }
 
 export const claudeRouter = router({
-  logs: publicProcedure
-    .input(
-      z
-        .object({
-          page: z.number().int().min(1).optional(),
-          pageSize: z.number().int().min(1).max(25).optional(),
-        })
-        .optional()
-    )
-    .query(async ({ input }) => {
-      const page = input?.page ?? 1;
-      const pageSize = input?.pageSize ?? 5;
-      const entries = await readLogEntries();
-      const sorted = [...entries].sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-      const start = (page - 1) * pageSize;
-      const paged = sorted.slice(start, start + pageSize);
-
-      return {
-        items: paged,
-        total: sorted.length,
-        page,
-        pageSize,
-      };
-    }),
-
   chat: publicProcedure
     .input(
       z.object({
