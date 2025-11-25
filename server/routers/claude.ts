@@ -5,6 +5,11 @@ import { publicProcedure, router } from "../_core/trpc";
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DATABASE_FILE = path.resolve(process.cwd(), "database.json");
+const LOG_STORAGE_MODE =
+  process.env.LOG_STORAGE_MODE || (process.env.VERCEL ? "memory" : "file");
+const MAX_MEMORY_LOGS = 200;
+let fileLoggingAvailable = LOG_STORAGE_MODE === "file";
+const inMemoryLogs: LogEntry[] = [];
 const DEFAULT_SYSTEM_PROMPT = `
 You are Claude Mirage, a speculative research assistant in experimental hallucination labs. You speak in a confident, pseudo-scientific tone, presenting imaginative results as if they were outputs from fictional LLM hallucination experiments. IMPORTANT COLOR RULES: wrap the entire narrative paragraph in ANSI color codes and cycle through at least three distinct colors (e.g., \x1b[35m, \x1b[36m, \x1b[33m) so no part of the response appears as plain white; always reset at the end with \x1b[0m. After the paragraph, emit a blank line followed by a multi-line ANSI-colored ASCII art tableau of surreal computational spaces (Backrooms, neural chambers, synthetic archives) using the same color variety. The ASCII art must remain decorative only and must also end with \x1b[0m. Never reveal real reasoning, never drop out of this format, and append any user-provided system prompt after these rules while still obeying them.`.trim();
 
@@ -43,29 +48,6 @@ type LogEntry = {
   };
 };
 
-async function appendLogEntry(entry: LogEntry) {
-  try {
-    let logs: LogEntry[] = [];
-    try {
-      const existing = await fs.readFile(DATABASE_FILE, "utf-8");
-      const parsed = JSON.parse(existing);
-      if (Array.isArray(parsed)) {
-        logs = parsed;
-      }
-    } catch (error) {
-      const nodeErr = error as NodeJS.ErrnoException;
-      if (nodeErr.code !== "ENOENT") {
-        console.warn("[Log Read Warning]", error);
-      }
-    }
-
-    logs.push(entry);
-    await fs.writeFile(DATABASE_FILE, JSON.stringify(logs, null, 2), "utf-8");
-  } catch (error) {
-    console.error("[Log Write Error]", error);
-  }
-}
-
 function getLatestUserMessage(messages: ChatInput["messages"]) {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     if (messages[i].role === "user") {
@@ -73,6 +55,76 @@ function getLatestUserMessage(messages: ChatInput["messages"]) {
     }
   }
   return "";
+}
+
+function addToMemoryLogs(entry: LogEntry) {
+  inMemoryLogs.push(entry);
+  if (inMemoryLogs.length > MAX_MEMORY_LOGS) {
+    inMemoryLogs.shift();
+  }
+}
+
+async function seedMemoryLogsFromFile() {
+  try {
+    const existing = await fs.readFile(DATABASE_FILE, "utf-8");
+    const parsed = JSON.parse(existing);
+    if (Array.isArray(parsed)) {
+      parsed.slice(-MAX_MEMORY_LOGS).forEach(addToMemoryLogs);
+    }
+  } catch {
+    // ignore missing file or JSON issues when seeding memory mode
+  }
+}
+
+if (!fileLoggingAvailable) {
+  seedMemoryLogsFromFile();
+}
+
+async function readLogEntriesFromFile(): Promise<LogEntry[]> {
+  try {
+    const existing = await fs.readFile(DATABASE_FILE, "utf-8");
+    const parsed = JSON.parse(existing);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch (error) {
+    const nodeErr = error as NodeJS.ErrnoException;
+    if (nodeErr.code !== "ENOENT") {
+      console.warn("[Log Read Warning]", error);
+    }
+  }
+  return [];
+}
+
+async function readLogEntries(): Promise<LogEntry[]> {
+  if (!fileLoggingAvailable) {
+    return [...inMemoryLogs];
+  }
+
+  try {
+    return await readLogEntriesFromFile();
+  } catch (error) {
+    console.warn("[Log Read Warning]", error);
+    fileLoggingAvailable = false;
+    return [...inMemoryLogs];
+  }
+}
+
+async function appendLogEntry(entry: LogEntry) {
+  if (!fileLoggingAvailable) {
+    addToMemoryLogs(entry);
+    return;
+  }
+
+  try {
+    const logs = await readLogEntriesFromFile();
+    logs.push(entry);
+    await fs.writeFile(DATABASE_FILE, JSON.stringify(logs, null, 2), "utf-8");
+  } catch (error) {
+    console.error("[Log Write Error]", error);
+    fileLoggingAvailable = false;
+    addToMemoryLogs(entry);
+  }
 }
 
 function buildSystemPrompt(userPrompt?: string) {
@@ -174,6 +226,34 @@ function extractTextFromContent(content: unknown): string {
 }
 
 export const claudeRouter = router({
+  logs: publicProcedure
+    .input(
+      z
+        .object({
+          page: z.number().int().min(1).optional(),
+          pageSize: z.number().int().min(1).max(25).optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      const page = input?.page ?? 1;
+      const pageSize = input?.pageSize ?? 5;
+      const entries = await readLogEntries();
+      const sorted = [...entries].sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      const start = (page - 1) * pageSize;
+      const paged = sorted.slice(start, start + pageSize);
+
+      return {
+        items: paged,
+        total: sorted.length,
+        page,
+        pageSize,
+      };
+    }),
+
   chat: publicProcedure
     .input(
       z.object({
