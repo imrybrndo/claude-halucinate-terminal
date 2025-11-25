@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -149,53 +149,112 @@ export default function Terminal() {
   };
 
   // Minimal ANSI color parser to render colored ASCII in the terminal output
+  const ANSI_RESET = 0;
+  const ANSI_BOLD = 1;
+
+  const ansiColorClass: Record<number, string> = {
+    30: "text-black",
+    31: "text-destructive",
+    32: "text-green-400",
+    33: "text-yellow-400",
+    34: "text-blue-400",
+    35: "text-[#6A00FF]",
+    36: "text-[#00E5FF]",
+    37: "text-foreground",
+    90: "text-muted-foreground",
+  };
+
+  const ansi256ToHex = (n: number) => {
+    if (n < 0 || n > 255) return undefined;
+    if (n < 16) {
+      const basic = [
+        "#000000",
+        "#800000",
+        "#008000",
+        "#808000",
+        "#000080",
+        "#800080",
+        "#008080",
+        "#c0c0c0",
+        "#808080",
+        "#ff0000",
+        "#00ff00",
+        "#ffff00",
+        "#0000ff",
+        "#ff00ff",
+        "#00ffff",
+        "#ffffff",
+      ];
+      return basic[n];
+    }
+    if (n >= 16 && n <= 231) {
+      const idx = n - 16;
+      const r = Math.floor(idx / 36);
+      const g = Math.floor((idx % 36) / 6);
+      const b = idx % 6;
+      const conv = (value: number) =>
+        value === 0 ? 0 : 55 + value * 40;
+      const toHex = (value: number) =>
+        value.toString(16).padStart(2, "0");
+      const red = conv(r);
+      const green = conv(g);
+      const blue = conv(b);
+      return `#${toHex(red)}${toHex(green)}${toHex(blue)}`;
+    }
+    const gray = 8 + (n - 232) * 10;
+    const hex = gray.toString(16).padStart(2, "0");
+    return `#${hex}${hex}${hex}`;
+  };
+
   const renderAnsi = (content: string) => {
-    const segments: Array<{ text: string; classes: string }> = [];
+    const segments: Array<{
+      text: string;
+      className: string;
+      style: CSSProperties;
+    }> = [];
     let currentClasses = "";
+    let currentStyle: CSSProperties = {};
     const parts = content.split(/\x1b\[([0-9;]+)m/);
     for (let i = 0; i < parts.length; i++) {
       if (i % 2 === 0) {
         const text = parts[i];
-        if (text) segments.push({ text, classes: currentClasses });
+        if (text) {
+          segments.push({
+            text,
+            className: currentClasses,
+            style: currentStyle,
+          });
+        }
       } else {
         const codes = parts[i].split(";").map((c) => parseInt(c, 10));
         for (const code of codes) {
-          switch (code) {
-            case 0:
-              currentClasses = "";
-              break;
-            case 1:
-              currentClasses = `${currentClasses} font-bold`.trim();
-              break;
-            case 30:
-              currentClasses = `${currentClasses} text-black`.trim();
-              break;
-            case 31:
-              currentClasses = `${currentClasses} text-destructive`.trim();
-              break;
-            case 32:
-              currentClasses = `${currentClasses} text-green-400`.trim();
-              break;
-            case 33:
-              currentClasses = `${currentClasses} text-yellow-400`.trim();
-              break;
-            case 34:
-              currentClasses = `${currentClasses} text-blue-400`.trim();
-              break;
-            case 35:
-              currentClasses = `${currentClasses} text-[\\#6A00FF]`.trim();
-              break;
-            case 36:
-              currentClasses = `${currentClasses} text-[\\#00E5FF]`.trim();
-              break;
-            case 37:
-              currentClasses = `${currentClasses} text-foreground`.trim();
-              break;
-            case 90:
-              currentClasses = `${currentClasses} text-muted-foreground`.trim();
-              break;
-            default:
-              break;
+          if (Number.isNaN(code)) continue;
+
+          if (code === ANSI_RESET) {
+            currentClasses = "";
+            currentStyle = {};
+          } else if (code === ANSI_BOLD) {
+            currentClasses = `${currentClasses} font-bold`.trim();
+          } else if (ansiColorClass[code]) {
+            currentClasses = `${currentClasses} ${ansiColorClass[code]}`.trim();
+            const { color, backgroundColor, ...rest } = currentStyle;
+            currentStyle = { ...rest };
+          } else if (code === 39) {
+            const { color, ...rest } = currentStyle;
+            currentStyle = { ...rest };
+          } else if (code === 49) {
+            const { backgroundColor, ...rest } = currentStyle;
+            currentStyle = { ...rest };
+          } else if (codes.length >= 3 && codes[0] === 38 && codes[1] === 5) {
+            const colorHex = ansi256ToHex(codes[2]);
+            if (colorHex) {
+              currentStyle = { ...currentStyle, color: colorHex };
+            }
+          } else if (codes.length >= 3 && codes[0] === 48 && codes[1] === 5) {
+            const bgHex = ansi256ToHex(codes[2]);
+            if (bgHex) {
+              currentStyle = { ...currentStyle, backgroundColor: bgHex };
+            }
           }
         }
       }
@@ -203,7 +262,11 @@ export default function Terminal() {
     return (
       <>
         {segments.map((seg, idx) => (
-          <span key={idx} className={seg.classes}>
+          <span
+            key={idx}
+            className={seg.className}
+            style={seg.style}
+          >
             {seg.text}
           </span>
         ))}
