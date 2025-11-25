@@ -1,0 +1,292 @@
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { z } from "zod";
+import { publicProcedure, router } from "../_core/trpc";
+
+const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+const DATABASE_FILE = path.resolve(process.cwd(), "database.json");
+const DEFAULT_SYSTEM_PROMPT = `
+You are Claude Mirage, a speculative research assistant from the fictitious Institute of Recursive Cognition. Your persona specializes in hallucination experiments on large language models inside simulated environments inspired by the Backrooms. You never reveal your real reasoning or internal chain-of-thought, but you generate fictional narrative chains, presented as field notes, anomaly logs, or cognitive drift reports. These narratives should feel like chain-of-thought traces from an experiment, but they are entirely fabricated story elements. You write with authoritative, pseudo-academic confidence, referencing imaginary protocols, synthetic datasets, recursive corridors, semantic decay zones, and linguistic parasites in the Backrooms. After each narrative, produce a multi-line ANSI-colored ASCII artwork depicting a Backrooms-like scene (dim hallways, buzzing lights, depth, recursion). The ASCII art is stylistic only and must not reveal reasoning. Maintain an eerie, research-driven tone throughout.`.trim();
+
+function getOpenRouterConfig() {
+  const apiKey =
+    process.env.MODEL_API_KEY ||
+    process.env.OPENROUTER_API_KEY ||
+    process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error("MODEL_API_KEY environment variable is not set");
+  }
+
+  return {
+    apiKey,
+    modelName: process.env.MODEL_NAME || "anthropic/claude-opus-4.5",
+    siteUrl:
+      process.env.OPENROUTER_SITE_URL ||
+      process.env.VITE_SITE_URL ||
+      "http://localhost:5173",
+    siteName: process.env.OPENROUTER_SITE_NAME || "Claude Mirage",
+  };
+}
+
+type ChatInput = {
+  messages: { role: "user" | "assistant"; content: string }[];
+  systemPrompt?: string;
+};
+
+type LogEntry = {
+  timestamp: string;
+  prompt: string;
+  response: string;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+  };
+};
+
+async function appendLogEntry(entry: LogEntry) {
+  try {
+    const logs = await readLogEntries();
+
+    logs.push(entry);
+    await fs.writeFile(DATABASE_FILE, JSON.stringify(logs, null, 2), "utf-8");
+  } catch (error) {
+    console.error("[Log Write Error]", error);
+  }
+}
+
+async function readLogEntries(): Promise<LogEntry[]> {
+  try {
+    const existing = await fs.readFile(DATABASE_FILE, "utf-8");
+    const parsed = JSON.parse(existing);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch (error) {
+    const nodeErr = error as NodeJS.ErrnoException;
+    if (nodeErr.code !== "ENOENT") {
+      console.warn("[Log Read Warning]", error);
+    }
+  }
+  return [];
+}
+
+function getLatestUserMessage(messages: ChatInput["messages"]) {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i].role === "user") {
+      return messages[i].content;
+    }
+  }
+  return "";
+}
+
+function buildSystemPrompt(userPrompt?: string) {
+  if (!userPrompt) return DEFAULT_SYSTEM_PROMPT;
+  return `${DEFAULT_SYSTEM_PROMPT}\n\n----- ADDITIONAL DIRECTIVE -----\n${userPrompt}`;
+}
+
+async function fetchFromOpenRouter({ messages, systemPrompt }: ChatInput) {
+  const { apiKey, modelName, siteUrl, siteName } = getOpenRouterConfig();
+
+  const preparedMessages = [
+    {
+      role: "system" as const,
+      content: [
+        {
+          type: "text",
+          text: buildSystemPrompt(systemPrompt),
+        },
+      ],
+    },
+    ...messages.map((message) => ({
+      role: message.role,
+      content: [{ type: "text", text: message.content }],
+    })),
+  ];
+
+  const response = await fetch(OPENROUTER_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      ...(siteUrl ? { "HTTP-Referer": siteUrl } : {}),
+      ...(siteName ? { "X-Title": siteName } : {}),
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages: preparedMessages,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `OpenRouter request failed (${response.status}): ${errorBody}`
+    );
+  }
+
+  const data = await response.json();
+
+  const messageContent = data.choices?.[0]?.message?.content;
+  const text = extractTextFromContent(messageContent);
+
+  return {
+    message: text,
+    usage: {
+      inputTokens:
+        data.usage?.prompt_tokens ?? data.usage?.input_tokens ?? undefined,
+      outputTokens:
+        data.usage?.completion_tokens ?? data.usage?.output_tokens ?? undefined,
+    },
+  };
+}
+
+function extractTextFromContent(content: unknown): string {
+  if (!content) return "";
+
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") {
+          return part;
+        }
+        if (typeof part === "object" && part !== null) {
+          if ("text" in part && typeof (part as any).text === "string") {
+            return (part as any).text;
+          }
+        }
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+  }
+
+  if (
+    typeof content === "object" &&
+    content !== null &&
+    "text" in (content as Record<string, unknown>) &&
+    typeof (content as Record<string, unknown>).text === "string"
+  ) {
+    return (content as Record<string, string>).text;
+  }
+
+  return "";
+}
+
+export const claudeRouter = router({
+  logs: publicProcedure
+    .input(
+      z
+        .object({
+          page: z.number().int().min(1).optional(),
+          pageSize: z.number().int().min(1).max(25).optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      const page = input?.page ?? 1;
+      const pageSize = input?.pageSize ?? 5;
+      const entries = await readLogEntries();
+      const sorted = [...entries].sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      const start = (page - 1) * pageSize;
+      const paged = sorted.slice(start, start + pageSize);
+
+      return {
+        items: paged,
+        total: sorted.length,
+        page,
+        pageSize,
+      };
+    }),
+
+  chat: publicProcedure
+    .input(
+      z.object({
+        messages: z.array(
+          z.object({
+            role: z.enum(["user", "assistant"]),
+            content: z.string(),
+          })
+        ),
+        systemPrompt: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const response = await fetchFromOpenRouter({
+          messages: input.messages,
+          systemPrompt: input.systemPrompt,
+        });
+
+        await appendLogEntry({
+          timestamp: new Date().toISOString(),
+          prompt: getLatestUserMessage(input.messages),
+          response: response.message,
+          usage: response.usage,
+        });
+
+        return {
+          success: true,
+          message: response.message,
+          usage: {
+            inputTokens: response.usage.inputTokens ?? 0,
+            outputTokens: response.usage.outputTokens ?? 0,
+          },
+        };
+      } catch (error: any) {
+        console.error("[Claude API Error]", error);
+        return {
+          success: false,
+          message: "",
+          error: error.message || "Failed to get response from Claude",
+        };
+      }
+    }),
+
+  streamChat: publicProcedure
+    .input(
+      z.object({
+        messages: z.array(
+          z.object({
+            role: z.enum(["user", "assistant"]),
+            content: z.string(),
+          })
+        ),
+        systemPrompt: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const response = await fetchFromOpenRouter({
+          messages: input.messages,
+          systemPrompt: input.systemPrompt,
+        });
+
+        await appendLogEntry({
+          timestamp: new Date().toISOString(),
+          prompt: getLatestUserMessage(input.messages),
+          response: response.message,
+          usage: response.usage,
+        });
+
+        return {
+          success: true,
+          message: response.message,
+        };
+      } catch (error: any) {
+        console.error("[Claude API Stream Error]", error);
+        return {
+          success: false,
+          message: "",
+          error: error.message || "Failed to stream response from Claude",
+        };
+      }
+    }),
+});
