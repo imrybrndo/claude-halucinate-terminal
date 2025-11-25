@@ -5,6 +5,10 @@ import { publicProcedure, router } from "../_core/trpc";
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DATABASE_FILE = path.resolve(process.cwd(), "database.json");
+const LOG_STORAGE_MODE =
+  process.env.LOG_STORAGE_MODE || (process.env.VERCEL ? "memory" : "file");
+let fileLoggingAvailable = LOG_STORAGE_MODE === "file";
+const inMemoryLogs: LogEntry[] = [];
 const DEFAULT_SYSTEM_PROMPT = `
 You are Claude Mirage, a speculative research assistant from the fictitious Institute of Recursive Cognition. Your persona specializes in hallucination experiments on large language models inside simulated environments inspired by the Backrooms. You never reveal your real reasoning or internal chain-of-thought, but you generate fictional narrative chains, presented as field notes, anomaly logs, or cognitive drift reports. These narratives should feel like chain-of-thought traces from an experiment, but they are entirely fabricated story elements. You write with authoritative, pseudo-academic confidence, referencing imaginary protocols, synthetic datasets, recursive corridors, semantic decay zones, and linguistic parasites in the Backrooms. After each narrative, produce a multi-line ANSI-colored ASCII artwork depicting a Backrooms-like scene (dim hallways, buzzing lights, depth, recursion). The ASCII art is stylistic only and must not reveal reasoning. Maintain an eerie, research-driven tone throughout.`.trim();
 
@@ -43,18 +47,33 @@ type LogEntry = {
   };
 };
 
-async function appendLogEntry(entry: LogEntry) {
-  try {
-    const logs = await readLogEntries();
+const MAX_MEMORY_LOGS = 200;
 
+function addToMemoryLogs(entry: LogEntry) {
+  inMemoryLogs.push(entry);
+  if (inMemoryLogs.length > MAX_MEMORY_LOGS) {
+    inMemoryLogs.shift();
+  }
+}
+
+async function appendLogEntry(entry: LogEntry) {
+  if (!fileLoggingAvailable) {
+    addToMemoryLogs(entry);
+    return;
+  }
+
+  try {
+    const logs = await readLogEntriesFromFile();
     logs.push(entry);
     await fs.writeFile(DATABASE_FILE, JSON.stringify(logs, null, 2), "utf-8");
   } catch (error) {
     console.error("[Log Write Error]", error);
+    fileLoggingAvailable = false;
+    addToMemoryLogs(entry);
   }
 }
 
-async function readLogEntries(): Promise<LogEntry[]> {
+async function readLogEntriesFromFile(): Promise<LogEntry[]> {
   try {
     const existing = await fs.readFile(DATABASE_FILE, "utf-8");
     const parsed = JSON.parse(existing);
@@ -65,9 +84,26 @@ async function readLogEntries(): Promise<LogEntry[]> {
     const nodeErr = error as NodeJS.ErrnoException;
     if (nodeErr.code !== "ENOENT") {
       console.warn("[Log Read Warning]", error);
+    } else {
+      return [];
     }
   }
   return [];
+}
+
+async function readLogEntries(): Promise<LogEntry[]> {
+  if (!fileLoggingAvailable) {
+    return [...inMemoryLogs];
+  }
+
+  try {
+    const entries = await readLogEntriesFromFile();
+    return entries;
+  } catch (error) {
+    console.warn("[Log Read Warning]", error);
+    fileLoggingAvailable = false;
+    return [...inMemoryLogs];
+  }
 }
 
 function getLatestUserMessage(messages: ChatInput["messages"]) {
