@@ -8,7 +8,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ArrowLeft, Copy, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Copy, AlertTriangle, CheckCircle2, BookOpen } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -415,20 +415,32 @@ export default function Terminal() {
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="container max-w-6xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <Link href="/home">
-            <Button variant="ghost" className="gap-2">
+        {/* Nav */}
+        <header className="flex flex-col gap-3 py-6 text-sm md:flex-row md:items-center md:justify-between">
+          <Link href="/">
+            <Button variant="ghost" className="font-mono text-primary px-0 justify-start">
               <ArrowLeft className="w-4 h-4" />
-              Back to Home
+              Home
             </Button>
           </Link>
-          
-          <Badge variant="outline" className="gap-2 font-mono">
-            <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-            Terminal Active
-          </Badge>
-        </div>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+            <Link href="/docs">
+              <Button variant="ghost" className="font-mono text-foreground hover:text-primary">
+                Documentation
+              </Button>
+            </Link>
+            <a
+              href="https://arxiv.org/pdf/2509.04664"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Button variant="outline" className="font-mono gap-2">
+                <BookOpen className="w-4 h-4" />
+                Whitepaper
+              </Button>
+            </a>
+          </div>
+        </header>
 
         {/* Terminal Card */}
         <Card className="border-primary/30 bg-card/95 backdrop-blur overflow-hidden">

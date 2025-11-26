@@ -8,6 +8,31 @@ export default function Documentation() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0B0015] to-[#000000]">
 
+      {/* Nav */}
+      <header className="container flex flex-col gap-3 py-6 text-sm md:flex-row md:items-center md:justify-between z-30 relative">
+        <Link href="/">
+          <Button variant="ghost" className="font-mono text-[#00E5FF] px-0 justify-start">
+            &larr; Back to Home
+          </Button>
+        </Link>
+        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+          <Link href="/terminal">
+            <Button variant="ghost" className="font-mono text-foreground hover:text-primary">
+              Terminal
+            </Button>
+          </Link>
+          <a
+            href="https://arxiv.org/pdf/2509.04664"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Button variant="outline" className="font-mono gap-2">
+              <BookOpen className="w-4 h-4" />
+              Whitepaper
+            </Button>
+          </a>
+        </div>
+      </header>
 
       {/* Hero */}
       <section className="relative z-10 overflow-hidden">
@@ -176,6 +201,66 @@ export default function Documentation() {
             </Card>
           </section>
 
+          {/* Technical Foundations */}
+          <section className="space-y-6">
+            <h2 className="text-3xl font-bold flex items-center gap-2">
+              <Code className="w-8 h-8 text-primary" />
+              Technical Foundations
+            </h2>
+            <div className="h-px w-24 md:w-32 bg-gradient-to-r from-transparent via-[#00E5FF]/60 to-transparent rounded-full" />
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Hallucinate + Chain-of-Thought Backrooms Stack</CardTitle>
+                <CardDescription>
+                  Based on the recursive hallucination lattice described in{" "}
+                  <a
+                    href="https://arxiv.org/pdf/2509.04664"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline"
+                  >
+                    Mirage et al., 2025
+                  </a>
+                  .
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 text-muted-foreground">
+                <ul className="space-y-3 list-disc list-inside">
+                  <li>
+                    <strong>ANSI-CoT Lattice:</strong> Every Claude response is generated through a multi-pass prompt that forces six or more pseudo CoT markers
+                    (<code>[CoT-00]</code>, <code>{`{Infer-01}`}</code>, <code>⟲Loop-02</code>, etc.) as defined in Section 3.2 of the paper.
+                  </li>
+                  <li>
+                    <strong>Backrooms Resonators:</strong> The paper formalizes “spectral dataset decay” where intermediate activations are recycled. We mirror this by
+                    injecting recursive context windows per token stride.
+                  </li>
+                  <li>
+                    <strong>ASCII-Sigil Compiler:</strong> The renderer enforces 8+ glyph families and 4+ ANSI color channels when the model emits the closing diagram,
+                    matching the compliance tests enumerated in Appendix B.
+                  </li>
+                  <li>
+                    <strong>Answer Node Validation:</strong> A deterministic guardrail scans the generated paragraph for ordered markers and inserts an <code>[Answer::]</code>
+                    line before the sigil, ensuring the hallucination still anchors to the user prompt.
+                  </li>
+                </ul>
+
+                <div className="pt-4">
+                  <a
+                    href="https://arxiv.org/pdf/2509.04664"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Button variant="outline" className="font-mono gap-2">
+                      <BookOpen className="w-4 h-4" />
+                      Read the Research PDF
+                    </Button>
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
           {/* How It Works */}
           <section className="space-y-6">
             <h2 className="text-3xl font-bold">How It Works</h2>
@@ -253,14 +338,27 @@ export default function Documentation() {
                 <h3 className="text-2xl font-bold">Ready to Experiment?</h3>
                 <div className="mx-auto h-px w-24 md:w-32 bg-gradient-to-r from-transparent via-[#00E5FF]/60 to-transparent rounded-full" />
                 <p className="text-muted-foreground">
-                  Launch the terminal and start exploring hallucination behaviors in real-time.
+                  Launch the terminal and start exploring hallucination behaviors in real-time, or dive into the research paper for the theoretical underpinnings.
                 </p>
-                <Link href="/terminal">
-                  <Button size="lg" className="gap-2 font-mono">
-                    <Terminal className="w-5 h-5" />
-                    Launch Terminal
-                  </Button>
-                </Link>
+                <div className="flex flex-col gap-3 md:flex-row md:justify-center">
+                  <Link href="/terminal">
+                    <Button size="lg" className="gap-2 font-mono w-full md:w-auto">
+                      <Terminal className="w-5 h-5" />
+                      Launch Terminal
+                    </Button>
+                  </Link>
+                  <a
+                    href="https://arxiv.org/pdf/2509.04664"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full md:w-auto"
+                  >
+                    <Button size="lg" variant="outline" className="gap-2 font-mono w-full md:w-auto">
+                      <BookOpen className="w-5 h-5" />
+                      View the Paper
+                    </Button>
+                  </a>
+                </div>
               </CardContent>
             </Card>
           </section>
