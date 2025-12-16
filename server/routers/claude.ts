@@ -77,7 +77,8 @@ function addToMemoryLogs(entry: LogEntry) {
 }
 
 async function seedMemoryLogsFromFile() {
-  if (!fileLoggingAvailable) return;
+  // Always try to seed memory logs from file (safe to do).
+  // This allows Vercel (memory mode) to start with historical logs.
   try {
     const existing = await fs.readFile(DATABASE_FILE, "utf-8");
     const parsed = JSON.parse(existing);
@@ -91,7 +92,7 @@ async function seedMemoryLogsFromFile() {
 
 // Always attempt to seed memory logs from file if it exists,
 // even in serverless mode (to show initial/static logs from the repo).
-seedMemoryLogsFromFile();
+seedMemoryLogsFromFile().catch(err => console.error("Failed to seed logs", err));
 
 async function readLogEntriesFromFile(): Promise<LogEntry[]> {
   try {

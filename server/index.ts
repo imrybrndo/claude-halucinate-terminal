@@ -3,7 +3,7 @@ import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { appRouter } from "./routers";
+import { appRouter } from "./appRouter";
 import { createContext } from "./_core/context";
 import { registerOAuthRoutes } from "./_core/oauth";
 
