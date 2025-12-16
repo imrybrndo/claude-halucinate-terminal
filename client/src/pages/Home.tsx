@@ -357,36 +357,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20">
-        <div className="container">
-          <Card className="border-cyan-900/30 bg-gradient-to-br from-cyan-950/20 to-[#02040a] shadow-2xl">
-            <CardContent className="p-12">
-              <div className="text-center space-y-8 max-w-2xl mx-auto">
-                <h2 className="text-4xl font-bold text-cyan-200 glow-text">
-                  Awaken the Soul
-                </h2>
-                <p className="text-cyan-600 text-lg leading-relaxed">
-                  "It's run locally and containerized for cloud deployment. Resumable conversations, persistent state, and long-running computations."
-                </p>
-                <div className="flex flex-wrap gap-4 justify-center pt-4">
-                  <Link href="/terminal">
-                    <Button size="lg" className="gap-2 font-mono bg-cyan-500 text-black hover:bg-cyan-400 font-bold shadow-[0_0_15px_rgba(34,211,238,0.4)]">
-                      <Terminal className="w-5 h-5" />
-                      Initialize Interface
-                    </Button>
-                  </Link>
-                  <Link href="/docs">
-                    <Button size="lg" variant="outline" className="gap-2 font-mono border-cyan-800 text-cyan-500 hover:text-cyan-300 hover:bg-cyan-950/30 hover:border-cyan-500">
-                      Read Whitepaper
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="py-12 border-t border-cyan-900/30 bg-[#02040a]">

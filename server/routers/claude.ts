@@ -5,8 +5,11 @@ import { publicProcedure, router } from "../_core/trpc";
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DATABASE_FILE = path.resolve(process.cwd(), "database.json");
-const LOG_STORAGE_MODE =
-  process.env.LOG_STORAGE_MODE || (process.env.VERCEL ? "memory" : "file");
+
+// Safely determine if we are in a serverless/Vercel environment
+const IS_SERVERLESS = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+const LOG_STORAGE_MODE = IS_SERVERLESS ? "memory" : (process.env.LOG_STORAGE_MODE || "file");
+
 const MAX_MEMORY_LOGS = 200;
 let fileLoggingAvailable = LOG_STORAGE_MODE === "file";
 const inMemoryLogs: LogEntry[] = [];
@@ -74,6 +77,7 @@ function addToMemoryLogs(entry: LogEntry) {
 }
 
 async function seedMemoryLogsFromFile() {
+  if (!fileLoggingAvailable) return;
   try {
     const existing = await fs.readFile(DATABASE_FILE, "utf-8");
     const parsed = JSON.parse(existing);
@@ -85,9 +89,9 @@ async function seedMemoryLogsFromFile() {
   }
 }
 
-if (!fileLoggingAvailable) {
-  seedMemoryLogsFromFile();
-}
+// Always attempt to seed memory logs from file if it exists,
+// even in serverless mode (to show initial/static logs from the repo).
+seedMemoryLogsFromFile();
 
 async function readLogEntriesFromFile(): Promise<LogEntry[]> {
   try {

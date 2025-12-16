@@ -44,16 +44,6 @@ export default function Documentation() {
               Terminal
             </Button>
           </Link>
-          <a
-            href="https://arxiv.org/pdf/2509.04664"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <Button variant="outline" className="font-mono gap-2 border-cyan-800 bg-[#050a15] text-cyan-400 hover:bg-cyan-950 hover:text-cyan-300 hover:border-cyan-600">
-              <BookOpen className="w-4 h-4" />
-              Whitepaper
-            </Button>
-          </a>
         </div>
       </header>
 
@@ -81,7 +71,7 @@ export default function Documentation() {
               <span className="text-sm text-cyan-400 font-mono">System Documentation</span>
             </div>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white">
-              <span className="glow-text">Soul Engine Docs</span>
+              <span className="glow-text">Astral Soul Docs</span>
             </h1>
             <div className="mx-auto h-px w-24 md:w-32 bg-gradient-to-r from-transparent via-cyan-500/60 to-transparent rounded-full" />
             <p className="text-lg md:text-xl text-cyan-200/80 max-w-2xl mx-auto drop-shadow-md">
