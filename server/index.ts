@@ -33,14 +33,14 @@ async function startServer() {
   // Serve static files from dist/public in production
   // We assume the server is running from the root or a 'dist' folder adjacent to 'public'
   // Trying common paths for Vercel/Production
-  let staticPath = path.resolve(__dirname, "../dist/public");
+  let staticPath = path.resolve(__dirname, "../dist");
   
   // If running from compiled server file in dist/
-  if (__dirname.endsWith('dist')) {
-     staticPath = path.resolve(__dirname, "public"); 
+  if (__dirname.endsWith('dist-server')) {
+     staticPath = path.resolve(__dirname, "../dist"); 
   } else {
      // Fallback/Local
-     staticPath = path.resolve(__dirname, "../dist/public");
+     staticPath = path.resolve(__dirname, "../dist");
   }
 
   app.use(express.static(staticPath));
