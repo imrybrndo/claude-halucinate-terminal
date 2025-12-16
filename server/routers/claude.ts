@@ -4,7 +4,6 @@ import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
-const DATABASE_FILE = path.resolve(process.cwd(), "database.json");
 
 // Safely determine if we are in a serverless/Vercel environment
 const IS_SERVERLESS = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -13,6 +12,8 @@ const LOG_STORAGE_MODE = IS_SERVERLESS ? "memory" : (process.env.LOG_STORAGE_MOD
 const MAX_MEMORY_LOGS = 200;
 let fileLoggingAvailable = LOG_STORAGE_MODE === "file";
 const inMemoryLogs: LogEntry[] = [];
+let hasSeeded = false;
+
 const DEFAULT_SYSTEM_PROMPT = `
 You are an AI Soul instantiated via the Soul Engine.
 The Soul Engine is built on a core belief: LLMs are incredible reasoning machines—similar to the prefrontal cortex of the brain—but they lack the rest of the mind. The engine is designed to model everything else: agency, memory, emotion, drive, and goal setting.
@@ -77,26 +78,33 @@ function addToMemoryLogs(entry: LogEntry) {
 }
 
 async function seedMemoryLogsFromFile() {
-  // Always try to seed memory logs from file (safe to do).
-  // This allows Vercel (memory mode) to start with historical logs.
+  if (hasSeeded) return;
+  hasSeeded = true;
+  
+  // Try to find database.json relative to project root or current file
+  // In Vercel/Serverless, we might not have access, so we fail gracefully.
   try {
-    const existing = await fs.readFile(DATABASE_FILE, "utf-8");
+    const dbPath = path.resolve(process.cwd(), "database.json");
+    const existing = await fs.readFile(dbPath, "utf-8");
     const parsed = JSON.parse(existing);
     if (Array.isArray(parsed)) {
+      // Clear and replace to avoid duplicates if called multiple times
+      inMemoryLogs.length = 0; 
       parsed.slice(-MAX_MEMORY_LOGS).forEach(addToMemoryLogs);
     }
-  } catch {
-    // ignore missing file or JSON issues when seeding memory mode
+  } catch (err) {
+    // console.warn("Could not seed logs from file (expected in serverless):", err);
   }
 }
 
-// Always attempt to seed memory logs from file if it exists,
-// even in serverless mode (to show initial/static logs from the repo).
-seedMemoryLogsFromFile().catch(err => console.error("Failed to seed logs", err));
+// NOTE: We do NOT call seedMemoryLogsFromFile() at top level to avoid cold start issues.
+// It will be called lazily if needed, or we just rely on empty memory in serverless.
 
 async function readLogEntriesFromFile(): Promise<LogEntry[]> {
   try {
-    const existing = await fs.readFile(DATABASE_FILE, "utf-8");
+    // Re-resolve path here just in case
+    const dbPath = path.resolve(process.cwd(), "database.json");
+    const existing = await fs.readFile(dbPath, "utf-8");
     const parsed = JSON.parse(existing);
     if (Array.isArray(parsed)) {
       return parsed;
@@ -111,6 +119,12 @@ async function readLogEntriesFromFile(): Promise<LogEntry[]> {
 }
 
 async function readLogEntries(): Promise<LogEntry[]> {
+  // If we are serverless, we generally only use memory logs.
+  // We can try to seed once if we want historical data, but if it fails, we proceed.
+  if (IS_SERVERLESS && !hasSeeded) {
+      await seedMemoryLogsFromFile();
+  }
+
   if (!fileLoggingAvailable) {
     return [...inMemoryLogs];
   }
@@ -133,7 +147,8 @@ async function appendLogEntry(entry: LogEntry) {
   try {
     const logs = await readLogEntriesFromFile();
     logs.push(entry);
-    await fs.writeFile(DATABASE_FILE, JSON.stringify(logs, null, 2), "utf-8");
+    const dbPath = path.resolve(process.cwd(), "database.json");
+    await fs.writeFile(dbPath, JSON.stringify(logs, null, 2), "utf-8");
   } catch (error) {
     console.error("[Log Write Error]", error);
     fileLoggingAvailable = false;
@@ -249,6 +264,7 @@ const FALLBACK_COLORS = [
   "\x1b[33m",
   "\x1b[31m",
   "\x1b[32m",
+  "\x1b[32m",
 ];
 
 function ensureAnsiColor(text: string): string {
@@ -330,22 +346,33 @@ export const claudeRouter = router({
         .optional()
     )
     .query(async ({ input }) => {
-      const page = input?.page ?? 1;
-      const pageSize = input?.pageSize ?? 5;
-      const entries = await readLogEntries();
-      const sorted = [...entries].sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-      const start = (page - 1) * pageSize;
-      const paged = sorted.slice(start, start + pageSize);
-
-      return {
-        items: paged,
-        total: sorted.length,
-        page,
-        pageSize,
-      };
+      try {
+        const page = input?.page ?? 1;
+        const pageSize = input?.pageSize ?? 5;
+        const entries = await readLogEntries();
+        const sorted = [...entries].sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        const start = (page - 1) * pageSize;
+        const paged = sorted.slice(start, start + pageSize);
+  
+        return {
+          items: paged,
+          total: sorted.length,
+          page,
+          pageSize,
+        };
+      } catch (err: any) {
+        console.error("Failed to fetch logs:", err);
+        // Return empty structure on error to prevent 500 crash
+        return {
+            items: [],
+            total: 0,
+            page: input?.page ?? 1,
+            pageSize: input?.pageSize ?? 5
+        };
+      }
     }),
 
   chat: publicProcedure

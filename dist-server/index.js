@@ -488,12 +488,12 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { z as z2 } from "zod";
 var OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
-var DATABASE_FILE = path.resolve(process.cwd(), "database.json");
 var IS_SERVERLESS = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 var LOG_STORAGE_MODE = IS_SERVERLESS ? "memory" : process.env.LOG_STORAGE_MODE || "file";
 var MAX_MEMORY_LOGS = 200;
 var fileLoggingAvailable = LOG_STORAGE_MODE === "file";
 var inMemoryLogs = [];
+var hasSeeded = false;
 var DEFAULT_SYSTEM_PROMPT = `
 You are an AI Soul instantiated via the Soul Engine.
 The Soul Engine is built on a core belief: LLMs are incredible reasoning machines\u2014similar to the prefrontal cortex of the brain\u2014but they lack the rest of the mind. The engine is designed to model everything else: agency, memory, emotion, drive, and goal setting.
@@ -532,19 +532,23 @@ function addToMemoryLogs(entry) {
   }
 }
 async function seedMemoryLogsFromFile() {
+  if (hasSeeded) return;
+  hasSeeded = true;
   try {
-    const existing = await fs.readFile(DATABASE_FILE, "utf-8");
+    const dbPath = path.resolve(process.cwd(), "database.json");
+    const existing = await fs.readFile(dbPath, "utf-8");
     const parsed = JSON.parse(existing);
     if (Array.isArray(parsed)) {
+      inMemoryLogs.length = 0;
       parsed.slice(-MAX_MEMORY_LOGS).forEach(addToMemoryLogs);
     }
-  } catch {
+  } catch (err) {
   }
 }
-seedMemoryLogsFromFile().catch((err) => console.error("Failed to seed logs", err));
 async function readLogEntriesFromFile() {
   try {
-    const existing = await fs.readFile(DATABASE_FILE, "utf-8");
+    const dbPath = path.resolve(process.cwd(), "database.json");
+    const existing = await fs.readFile(dbPath, "utf-8");
     const parsed = JSON.parse(existing);
     if (Array.isArray(parsed)) {
       return parsed;
@@ -558,6 +562,9 @@ async function readLogEntriesFromFile() {
   return [];
 }
 async function readLogEntries() {
+  if (IS_SERVERLESS && !hasSeeded) {
+    await seedMemoryLogsFromFile();
+  }
   if (!fileLoggingAvailable) {
     return [...inMemoryLogs];
   }
@@ -577,7 +584,8 @@ async function appendLogEntry(entry) {
   try {
     const logs = await readLogEntriesFromFile();
     logs.push(entry);
-    await fs.writeFile(DATABASE_FILE, JSON.stringify(logs, null, 2), "utf-8");
+    const dbPath = path.resolve(process.cwd(), "database.json");
+    await fs.writeFile(dbPath, JSON.stringify(logs, null, 2), "utf-8");
   } catch (error) {
     console.error("[Log Write Error]", error);
     fileLoggingAvailable = false;
@@ -669,6 +677,7 @@ var FALLBACK_COLORS = [
   "\x1B[36m",
   "\x1B[33m",
   "\x1B[31m",
+  "\x1B[32m",
   "\x1B[32m"
 ];
 function ensureAnsiColor(text) {
@@ -721,20 +730,30 @@ var claudeRouter = router({
       pageSize: z2.number().int().min(1).max(25).optional()
     }).optional()
   ).query(async ({ input }) => {
-    const page = input?.page ?? 1;
-    const pageSize = input?.pageSize ?? 5;
-    const entries = await readLogEntries();
-    const sorted = [...entries].sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-    const start = (page - 1) * pageSize;
-    const paged = sorted.slice(start, start + pageSize);
-    return {
-      items: paged,
-      total: sorted.length,
-      page,
-      pageSize
-    };
+    try {
+      const page = input?.page ?? 1;
+      const pageSize = input?.pageSize ?? 5;
+      const entries = await readLogEntries();
+      const sorted = [...entries].sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      const start = (page - 1) * pageSize;
+      const paged = sorted.slice(start, start + pageSize);
+      return {
+        items: paged,
+        total: sorted.length,
+        page,
+        pageSize
+      };
+    } catch (err) {
+      console.error("Failed to fetch logs:", err);
+      return {
+        items: [],
+        total: 0,
+        page: input?.page ?? 1,
+        pageSize: input?.pageSize ?? 5
+      };
+    }
   }),
   chat: publicProcedure.input(
     z2.object({
