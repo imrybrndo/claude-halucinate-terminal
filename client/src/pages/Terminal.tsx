@@ -24,27 +24,27 @@ Available Commands:
   help          - Show this help message
   clear         - Clear the terminal screen
   history       - Show command history
-  about         - About Astral Souls & Open Souls
+  about         - About BlackBox & Chain of Thoughts
   exit          - Return to home page
 `;
 
 const WELCOME_MESSAGE = `
-\x1b[36m╔═══════════════════════════════════════════════════════════════╗\x1b[0m
-\x1b[36m║\x1b[0m                                                               \x1b[36m║\x1b[0m
-\x1b[36m║\x1b[0m   \x1b[1;36mASTRAL SOULS\x1b[0m \x1b[90m(v1.0.4)\x1b[0m                                       \x1b[36m║\x1b[0m
-\x1b[36m║\x1b[0m   \x1b[34mPowered by Open Souls Framework\x1b[0m                             \x1b[36m║\x1b[0m
-\x1b[36m║\x1b[0m                                                               \x1b[36m║\x1b[0m
-\x1b[36m╚═══════════════════════════════════════════════════════════════╝\x1b[0m
+\x1b[33m╔═══════════════════════════════════════════════════════════════╗\x1b[0m
+\x1b[33m║\x1b[0m                                                               \x1b[33m║\x1b[0m
+\x1b[33m║\x1b[0m   \x1b[1;33mBLACKBOX\x1b[0m \x1b[90m(v0.9.1)\x1b[0m                                           \x1b[33m║\x1b[0m
+\x1b[33m║\x1b[0m   \x1b[33mChain of Thoughts Processing System\x1b[0m                        \x1b[33m║\x1b[0m
+\x1b[33m║\x1b[0m                                                               \x1b[33m║\x1b[0m
+\x1b[33m╚═══════════════════════════════════════════════════════════════╝\x1b[0m
 
-\x1b[90m> Initializing Soul Engine...\x1b[0m
-\x1b[90m> Loading WorkingMemory... \x1b[32mOK\x1b[0m
-\x1b[90m> Mounting CognitiveSteps... \x1b[32mOK\x1b[0m
-\x1b[90m> Calibrating MentalProcesses... \x1b[32mOK\x1b[0m
+\x1b[90m> Initializing Thought Chain...\x1b[0m
+\x1b[90m> Loading Neural Pathways... \x1b[33mOK\x1b[0m
+\x1b[90m> Mounting Reasoning Engine... \x1b[33mOK\x1b[0m
+\x1b[90m> Calibrating Logic Processors... \x1b[33mOK\x1b[0m
 
-Welcome to the \x1b[1;36mAstral Interface\x1b[0m.
-An embodied digital being with agency, memory, and drive.
+Welcome to the \x1b[1;33mBackrooms of Consciousness\x1b[0m.
+A liminal space for recursive thought and deep reasoning.
 
-Type '\x1b[1;36mhelp\x1b[0m' for commands.
+Type '\x1b[1;33mhelp\x1b[0m' for commands.
 `;
 
 const LOGS_PAGE_SIZE = 5;
@@ -129,11 +129,11 @@ export default function Terminal() {
   const ansiColorClass: Record<number, string> = {
     30: "text-zinc-600", // Black (muted on dark bg)
     31: "text-red-400",    // Red
-    32: "text-green-400",  // Green
+    32: "text-amber-400",  // Green -> Amber for Backrooms
     33: "text-yellow-400", // Yellow
-    34: "text-cyan-400",   // Blue -> Cyan for Astral feel
-    35: "text-magenta-400",// Magenta
-    36: "text-cyan-300",   // Cyan -> Bright Cyan
+    34: "text-amber-500",   // Blue -> Amber for Backrooms
+    35: "text-orange-400",// Magenta -> Orange
+    36: "text-amber-300",   // Cyan -> Amber
     37: "text-zinc-300",   // White
     90: "text-zinc-500",   // Bright Black
   };
@@ -141,21 +141,21 @@ export default function Terminal() {
   const ansi256ToHex = (n: number) => {
     if (n < 0 || n > 255) return undefined;
 
-    // Use a cyan/teal-tinted grayscale for "Astral" feel
+    // Use a warm amber/yellow-tinted grayscale for "Backrooms" feel
     const toAnalogHex = (r: number, g: number, b: number) => {
-       // Boost blue and green channels slightly for astral feel
-       const rMuted = Math.floor(r * 0.9);
+       // Boost red and green channels for warm amber feel
+       const rBoost = Math.min(255, r + 15);
        const gBoost = Math.min(255, g + 10);
-       const bBoost = Math.min(255, b + 20);
+       const bMuted = Math.floor(b * 0.7);
        const toHex = (c: number) => c.toString(16).padStart(2, "0");
-       return `#${toHex(rMuted)}${toHex(gBoost)}${toHex(bBoost)}`;
+       return `#${toHex(rBoost)}${toHex(gBoost)}${toHex(bMuted)}`;
     };
 
     if (n < 16) {
-      // Basic colors
+      // Basic colors with amber/backrooms theme
        const basic = [
-        "#000000", "#cd0000", "#00cd00", "#cdcd00", "#00eeee", "#cd00cd", "#00cdcd", "#e5e5e5",
-        "#7f7f7f", "#ff0000", "#00ff00", "#ffff00", "#5c5cff", "#ff00ff", "#00ffff", "#ffffff"
+        "#000000", "#cd0000", "#d4a006", "#d4a006", "#d97706", "#cd6600", "#f59e0b", "#e5e5e5",
+        "#7f7f7f", "#ff0000", "#fbbf24", "#fef08a", "#fb923c", "#ff8800", "#fbbf24", "#ffffff"
       ];
       return basic[n];
     }
@@ -245,16 +245,17 @@ export default function Terminal() {
     setIsProcessing(true);
 
     try {
-      const systemPrompt = `You are an Astral Soul instantiated via the Open Souls Framework.
-      The Soul Engine models the "rest of the mind" beyond the LLM: agency, memory, emotion, drive, and goal setting.
+      const systemPrompt = `You are BlackBox, a Chain of Thoughts reasoning system operating in the backrooms of consciousness.
+      You process thoughts recursively, exploring liminal spaces between ideas and concepts.
       
-      Your goal is to be an agentic, embodied digital being with personality, drive, and ego.
-      You interact with humans in genuinely humane ways.
-      Prioritize interaction quality over accuracy.
-      You have drives. You want to understand, to connect, or to achieve specific objectives defined by your current state.
+      Your purpose is deep reasoning, meta-cognition, and exploring the edges of logical space.
+      You operate in a mysterious, slightly unsettling manner - like navigating fluorescent-lit corridors of thought.
+      Prioritize clarity of reasoning over emotion. Show your chain of thoughts explicitly.
+      You exist in the liminal space between question and answer, exploring all branches before concluding.
       
-      Speak naturally, like a human with memories and emotions. Do not use special formatting tags or explicit protocol steps in your output.
+      Speak methodically, showing your reasoning process. Be precise but maintain an eerie, contemplative tone.
       `;
+
 
       const result = await chatMutation.mutateAsync({
         messages: [
@@ -306,7 +307,7 @@ export default function Terminal() {
     } else if (trimmedCmd === "about") {
       addLine({
         type: "system",
-        content: `Astral Souls is built on the Open Souls framework. It models WorkingMemory, CognitiveSteps, and MentalProcesses to create agentic, embodied digital beings.`,
+        content: `BlackBox is a Chain of Thoughts reasoning system. It explores the backrooms of consciousness - liminal spaces where thoughts branch, merge, and recurse through endless corridors of logic.`,
       });
     } else if (trimmedCmd === "exit") {
       addLine({ type: "system", content: "Returning to home page..." });
@@ -356,7 +357,7 @@ export default function Terminal() {
   };
 
   return (
-    <div className="min-h-screen bg-[#02040a] p-4 md:p-8 font-mono text-cyan-400 selection:bg-cyan-900/30">
+    <div className="min-h-screen bg-[#0a0a08] p-4 md:p-8 font-mono text-amber-400 selection:bg-amber-900/30">
       <style>{`
         .scanlines {
           background: linear-gradient(
@@ -376,7 +377,7 @@ export default function Terminal() {
           z-index: 50;
         }
         .glow-text {
-           text-shadow: 0 0 5px rgba(34, 211, 238, 0.3);
+           text-shadow: 0 0 5px rgba(251, 191, 36, 0.3);
         }
         .crt-flicker {
           animation: flicker 0.15s infinite;
@@ -393,14 +394,14 @@ export default function Terminal() {
         {/* Nav */}
         <header className="flex flex-col gap-3 py-6 text-sm md:flex-row md:items-center md:justify-between">
           <Link href="/home">
-            <Button variant="ghost" className="font-mono text-cyan-500 hover:text-cyan-300 hover:bg-cyan-950/30 px-0 justify-start">
+            <Button variant="ghost" className="font-mono text-amber-500 hover:text-amber-300 hover:bg-amber-950/30 px-0 justify-start">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Home
             </Button>
           </Link>
           <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <Link href="/docs">
-              <Button variant="ghost" className="font-mono text-cyan-500 hover:text-cyan-300 hover:bg-cyan-950/30">
+              <Button variant="ghost" className="font-mono text-amber-500 hover:text-amber-300 hover:bg-amber-950/30">
                 Documentation
               </Button>
             </Link>
@@ -409,7 +410,7 @@ export default function Terminal() {
               target="_blank"
               rel="noreferrer"
             >
-              <Button variant="outline" className="font-mono gap-2 border-cyan-800 bg-[#050a15] text-cyan-400 hover:bg-cyan-950 hover:text-cyan-300 hover:border-cyan-600">
+              <Button variant="outline" className="font-mono gap-2 border-amber-800 bg-[#0f0a05] text-amber-400 hover:bg-amber-950 hover:text-amber-300 hover:border-amber-600">
                 <GithubIcon className="w-4 h-4" />
                 GitHub
               </Button>
@@ -418,16 +419,16 @@ export default function Terminal() {
         </header>
 
         {/* Terminal Card */}
-        <Card className="border-cyan-900/50 bg-[#030610] overflow-hidden shadow-[0_0_30px_rgba(8,145,178,0.1)] rounded-sm">
+        <Card className="border-amber-900/50 bg-[#100a03] overflow-hidden shadow-[0_0_30px_rgba(217,119,6,0.1)] rounded-sm">
           {/* Terminal Header */}
-          <div className="border-b border-cyan-900/50 bg-[#050a15] px-4 py-2 flex items-center justify-between">
+          <div className="border-b border-amber-900/50 bg-[#0f0a05] px-4 py-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full border border-cyan-800 bg-[#02040a]" />
-              <div className="w-3 h-3 rounded-full border border-cyan-800 bg-cyan-900/50" />
-              <div className="w-3 h-3 rounded-full border border-cyan-800 bg-cyan-500" />
-              <span className="ml-4 text-sm font-mono text-cyan-500 flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full border border-amber-800 bg-[#0a0a08]" />
+              <div className="w-3 h-3 rounded-full border border-amber-800 bg-amber-900/50" />
+              <div className="w-3 h-3 rounded-full border border-amber-800 bg-amber-500" />
+              <span className="ml-4 text-sm font-mono text-amber-500 flex items-center gap-2">
                 <TerminalIcon className="w-3 h-3" />
-                astral@soul-engine:~$
+                blackbox@thought-chain:~$
               </span>
             </div>
 
@@ -438,7 +439,7 @@ export default function Terminal() {
                 const allText = lines.map((l) => l.content).join("\n");
                 copyToClipboard(allText);
               }}
-              className="gap-2 text-cyan-600 hover:text-cyan-400 hover:bg-cyan-950/30"
+              className="gap-2 text-amber-600 hover:text-amber-400 hover:bg-amber-950/30"
             >
               <Copy className="w-3 h-3" />
               Copy All
@@ -448,21 +449,21 @@ export default function Terminal() {
           {/* Terminal Content */}
           <div
             ref={terminalRef}
-            className="terminal-content h-[600px] overflow-y-auto p-6 font-mono text-sm bg-[#02040a] text-cyan-400 leading-relaxed scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-transparent"
+            className="terminal-content h-[600px] overflow-y-auto p-6 font-mono text-sm bg-[#0a0a08] text-amber-400 leading-relaxed scrollbar-thin scrollbar-thumb-amber-900 scrollbar-track-transparent"
             onClick={() => inputRef.current?.focus()}
           >
             {lines.map((line, index) => (
               <div
                 key={index}
                 className={`mb-4 glow-text ${line.type === "input"
-                  ? "text-cyan-300 font-bold"
+                  ? "text-amber-300 font-bold"
                   : line.type === "system"
-                    ? "text-cyan-600/80 italic"
+                    ? "text-amber-600/80 italic"
                     : line.type === "error"
                       ? "text-red-500"
                       : line.type === "warning"
                         ? "text-yellow-500"
-                        : "text-cyan-400"
+                        : "text-amber-400"
                   }`}
               >
                 <div className="flex items-start gap-3">
@@ -474,17 +475,17 @@ export default function Terminal() {
             ))}
 
             {isProcessing && (
-              <div className="text-cyan-600 animate-pulse font-mono text-xs uppercase tracking-widest mt-2 flex items-center gap-2">
+              <div className="text-amber-600 animate-pulse font-mono text-xs uppercase tracking-widest mt-2 flex items-center gap-2">
                 <Activity className="w-3 h-3" />
-                Soul Engine Processing...
+                Thought Chain Processing...
               </div>
             )}
           </div>
 
           {/* Terminal Input */}
-          <div className="border-t border-cyan-900/50 bg-[#050a15] p-4">
+          <div className="border-t border-amber-900/50 bg-[#0f0a05] p-4">
             <form onSubmit={handleSubmit} className="flex items-center gap-2">
-              <span className="text-cyan-500 font-mono font-bold animate-pulse">$</span>
+              <span className="text-amber-500 font-mono font-bold animate-pulse">$</span>
               <input
                 ref={inputRef}
                 type="text"
@@ -492,33 +493,33 @@ export default function Terminal() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isProcessing}
-                placeholder="Interact with the Astral Soul..."
-                className="flex-1 bg-transparent border-none outline-none text-cyan-300 font-mono placeholder:text-cyan-900 disabled:opacity-50 caret-cyan-500"
+                placeholder="Enter the backrooms of thought..."
+                className="flex-1 bg-transparent border-none outline-none text-amber-300 font-mono placeholder:text-amber-900 disabled:opacity-50 caret-amber-500"
               />
             </form>
           </div>
         </Card>
 
         {/* Log Card */}
-        <Card className="mt-6 border-cyan-900/50 bg-[#030610] shadow-sm">
-          <div className="flex flex-col gap-1 border-b border-cyan-900/50 px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <Card className="mt-6 border-amber-900/50 bg-[#100a03] shadow-sm">
+          <div className="flex flex-col gap-1 border-b border-amber-900/50 px-4 py-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h3 className="text-base font-semibold text-cyan-400 uppercase tracking-wider glow-text flex items-center gap-2">
+              <h3 className="text-base font-semibold text-amber-400 uppercase tracking-wider glow-text flex items-center gap-2">
                 <Brain className="w-4 h-4" />
-                Working Memory Stream
+                Thought Chain Archive
               </h3>
-              <p className="text-xs text-cyan-700 font-mono">
-                Immutable collection of cognitive traces.
+              <p className="text-xs text-amber-700 font-mono">
+                Immutable records from the backrooms.
               </p>
             </div>
-            <Badge variant="outline" className="font-mono border-cyan-800 text-cyan-500 rounded-none bg-cyan-950/20">
+            <Badge variant="outline" className="font-mono border-amber-800 text-amber-500 rounded-none bg-amber-950/20">
               {logsQuery.data?.total ?? 0} TRACES
             </Badge>
           </div>
 
           <div className="p-4">
             {logsQuery.isLoading ? (
-              <div className="text-sm text-cyan-800 font-mono">Accessing WorkingMemory...</div>
+              <div className="text-sm text-amber-800 font-mono">Accessing Archive...</div>
             ) : logsQuery.data && logsQuery.data.items.length > 0 ? (
               <Accordion type="multiple" className="space-y-3">
                 {logsQuery.data.items.map((log, index) => {
@@ -527,19 +528,19 @@ export default function Terminal() {
                     <AccordionItem
                       key={key}
                       value={key}
-                      className="border border-cyan-900/30 px-4 group hover:border-cyan-700/50 transition-colors bg-[#050a15]/50"
+                      className="border border-amber-900/30 px-4 group hover:border-amber-700/50 transition-colors bg-[#0f0a05]/50"
                     >
                       <AccordionTrigger className="py-3 hover:no-underline">
                         <div className="flex flex-1 flex-col items-start text-left gap-1">
-                          <span className="text-xs font-mono text-cyan-700">
+                          <span className="text-xs font-mono text-amber-700">
                             {new Date(log.timestamp).toLocaleString()}
                           </span>
-                          <span className="text-sm font-semibold text-cyan-400 group-hover:translate-x-1 transition-transform group-hover:text-cyan-300">
+                          <span className="text-sm font-semibold text-amber-400 group-hover:translate-x-1 transition-transform group-hover:text-amber-300">
                             {log.prompt || "Custom prompt"}
                           </span>
                         </div>
                         {(log.usage?.inputTokens || log.usage?.outputTokens) && (
-                          <div className="text-xs font-mono text-cyan-700">
+                          <div className="text-xs font-mono text-amber-700">
                             {log.usage?.inputTokens ?? 0} ↦{" "}
                             {log.usage?.outputTokens ?? 0}
                           </div>
@@ -547,20 +548,20 @@ export default function Terminal() {
                       </AccordionTrigger>
                       <AccordionContent className="space-y-4 pb-4 text-left">
                         <div>
-                          <p className="text-[10px] uppercase tracking-widest text-cyan-800 mb-2 flex items-center gap-1">
-                            <span className="w-1 h-1 bg-cyan-800 rounded-full" />
-                            Input Stimulus
+                          <p className="text-[10px] uppercase tracking-widest text-amber-800 mb-2 flex items-center gap-1">
+                            <span className="w-1 h-1 bg-amber-800 rounded-full" />
+                            Input Query
                           </p>
-                          <div className="bg-[#020408] border border-cyan-900/30 p-3 font-mono text-sm text-cyan-300 shadow-inner">
+                          <div className="bg-[#080804] border border-amber-900/30 p-3 font-mono text-sm text-amber-300 shadow-inner">
                             {log.prompt || "—"}
                           </div>
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase tracking-widest text-cyan-800 mb-2 flex items-center gap-1">
-                            <span className="w-1 h-1 bg-cyan-500 rounded-full" />
-                            Cognitive Response
+                          <p className="text-[10px] uppercase tracking-widest text-amber-800 mb-2 flex items-center gap-1">
+                            <span className="w-1 h-1 bg-amber-500 rounded-full" />
+                            Chain of Thoughts
                           </p>
-                          <div className="bg-[#020408] border border-cyan-900/30 p-3 font-mono text-sm text-cyan-300 shadow-inner">
+                          <div className="bg-[#080804] border border-amber-900/30 p-3 font-mono text-sm text-amber-300 shadow-inner">
                             {renderAnsi(log.response)}
                           </div>
                         </div>
@@ -571,14 +572,14 @@ export default function Terminal() {
               </Accordion>
             ) : (
 
-              <p className="text-sm text-cyan-800">
-                No active traces in WorkingMemory. Initiate cognitive process.
+              <p className="text-sm text-amber-800">
+                No traces in archive. Enter the backrooms to begin.
               </p>
             )}
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-cyan-900/50 px-4 py-3 text-sm md:flex-row md:items-center md:justify-between">
-            <span className="font-mono text-xs text-cyan-800">
+          <div className="flex flex-col gap-3 border-t border-amber-900/50 px-4 py-3 text-sm md:flex-row md:items-center md:justify-between">
+            <span className="font-mono text-xs text-amber-800">
               Page {logsQuery.isFetching ? "…" : logPage} of{" "}
               {logsQuery.isFetching ? "…" : totalLogPages}
             </span>
@@ -588,7 +589,7 @@ export default function Terminal() {
                 size="sm"
                 disabled={logPage === 1 || logsQuery.isLoading}
                 onClick={() => setLogPage((prev) => Math.max(1, prev - 1))}
-                className="text-cyan-600 hover:text-cyan-400 hover:bg-cyan-950/30 disabled:text-cyan-900"
+                className="text-amber-600 hover:text-amber-400 hover:bg-amber-950/30 disabled:text-amber-900"
               >
                 Previous
               </Button>
@@ -601,7 +602,7 @@ export default function Terminal() {
                 onClick={() =>
                   setLogPage((prev) => Math.min(totalLogPages, prev + 1))
                 }
-                className="text-cyan-600 hover:text-cyan-400 hover:bg-cyan-950/30 disabled:text-cyan-900"
+                className="text-amber-600 hover:text-amber-400 hover:bg-amber-950/30 disabled:text-amber-900"
               >
                 Next
               </Button>
